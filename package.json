@@ -1,0 +1,61 @@
+{
+  "name": "cryenv",
+  "version": "0.1.0",
+  "description": "🔐 Securely collect and manage missing .env variables via encrypted CLI surveys.",
+  "type": "module",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf output",
+    "prepare": "npm run build"
+  },
+  "bin": {
+    "cryenv": "./output/bin.js"
+  },
+  "author": {
+    "name": "Artyom Gorlovetskiy",
+    "email": "unbywyd@gmail.com",
+    "url": "https://github.com/unbywyd"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unbywyd/cryenv.git"
+  },
+  "bugs": {
+    "url": "https://github.com/unbywyd/cryenv/issues"
+  },
+  "homepage": "https://github.com/unbywyd/cryenv#readme",
+  "keywords": [
+    "cli",
+    "env",
+    "dotenv",
+    "security",
+    "survey",
+    "encryption",
+    "nodejs",
+    "configuration",
+    "typescript"
+  ],
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^22.10.10",
+    "@types/validator": "^13.12.2",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.2"
+  },
+  "files": [
+    "output/",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "dependencies": {
+    "fs-extra": "^11.3.0",
+    "inquirer": "^12.4.3",
+    "node-fetch": "^3.3.2",
+    "validator": "^13.12.0"
+  }
+}
