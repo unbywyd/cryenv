@@ -52,36 +52,83 @@ export function colorText(text: string, color: "yellow" | "gray" | "green" | "re
 }
 
 /*
-*   Encrypts the answers object with the provided public key
-*/
+ * Encrypts the answers object via:
+ *   1) compressAnswers -> zlib deflate
+ *   2) AES-256-CBC encryption
+ *   3) RSA encrypt the AES key
+ *   4) Concatenate into JSON -> base64
+ *   5) Return as `helloKey::base64_payload`
+ */
 export const encryptAnswers = (helloKey: string, answers: Record<string, any>, publicKey: string): string => {
-    const aesKey = crypto.randomBytes(32); // Генерация 256-битного AES-ключа
-    const iv = crypto.randomBytes(16); // IV (Initialization Vector)
+    // 1) Convert answers to string & compress with zlib
+    const answersString = compressAnswers(answers);
+    const compressed = zlib.deflateSync(Buffer.from(answersString, "utf-8"), {
+        level: zlib.constants.Z_BEST_COMPRESSION
+    });
 
+    // 2) Generate a random 256-bit AES key and 128-bit IV
+    const aesKey = crypto.randomBytes(32); // 32 bytes = 256 bits
+    const iv = crypto.randomBytes(16);     // 16 bytes = 128 bits
+
+    // 3) Encrypt the compressed data using AES-256-CBC
     const cipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
-    let encryptedData = cipher.update(JSON.stringify(answers), "utf-8", "base64");
-    encryptedData += cipher.final("base64");
+    const encryptedData = Buffer.concat([cipher.update(compressed), cipher.final()]);
 
-    const encryptedAesKey = crypto.publicEncrypt(publicKey, aesKey);
+    // 4) Encrypt the AES key with RSA
+    const encryptedKey = crypto.publicEncrypt(publicKey, aesKey);
 
-    return `${helloKey}::${iv.toString("base64")}::${encryptedAesKey.toString("base64")}::${encryptedData}`;
+    // 5) Pack everything (RSA-encrypted key, IV, AES-encrypted data) into JSON -> base64
+    const payloadJson = JSON.stringify({
+        k: encryptedKey.toString("base64"), // RSA-encrypted AES key
+        i: iv.toString("base64"),           // IV
+        d: encryptedData.toString("base64") // AES-encrypted data
+    });
+    const base64Payload = Buffer.from(payloadJson, "utf-8").toString("base64");
+
+    // Final token: `helloKey::base64Payload`
+    return `${helloKey}::${base64Payload}`;
 };
 
 
 /*
-*   Decrypts the encrypted data with the private key
-*/
-export const decryptAnswers = async (encryptedData: string) => {
-    const [_hello, ivBase64, aesKeyBase64, encryptedText] = encryptedData.split("::");
+ * Decrypts data from `HELLO_KEY::BASE64_PAYLOAD`:
+ *   1) Split by `::` to get the base64 payload
+ *   2) RSA-decrypt the AES key
+ *   3) AES-decrypt the data
+ *   4) zlib inflate
+ *   5) decompressAnswers => returns the original answers object
+ */
+export const decryptAnswers = async (encryptedData: string): Promise<Record<string, any>> => {
+    // 1) Split off the base64 payload (ignore the helloKey)
+    const [baseToken] = encryptedData.split(".");
+    const [/* hello */, base64Payload] = baseToken.split("::");
+    if (!base64Payload) {
+        throw new Error("Invalid data format (missing `::`).");
+    }
 
+    // 2) Parse the JSON payload
+    const payloadJson = Buffer.from(base64Payload, "base64").toString("utf-8");
+    const { k, i, d } = JSON.parse(payloadJson);
+
+    // 3) RSA-decrypt the AES key
     const privateKey = await getPrivateKey();
-    const aesKey = crypto.privateDecrypt(privateKey, Buffer.from(aesKeyBase64, "base64"));
+    const aesKey = crypto.privateDecrypt(privateKey, Buffer.from(k, "base64"));
 
-    const decipher = crypto.createDecipheriv("aes-256-cbc", aesKey, Buffer.from(ivBase64, "base64"));
-    let decrypted = decipher.update(encryptedText, "base64", "utf-8");
-    decrypted += decipher.final("utf-8");
+    // 4) AES-decrypt the compressed data
+    const iv = Buffer.from(i, "base64");
+    const encryptedDataBuf = Buffer.from(d, "base64");
 
-    return JSON.parse(decrypted);
+    const decipher = crypto.createDecipheriv("aes-256-cbc", aesKey, iv);
+    const decompressed = Buffer.concat([
+        decipher.update(encryptedDataBuf),
+        decipher.final()
+    ]);
+
+    // 5) zlib inflate -> original answers string
+    const answersString = zlib.inflateSync(decompressed).toString("utf-8");
+
+    // 6) Convert back to object with your existing logic
+    return decompressAnswers(answersString);
 };
 
 /*
@@ -328,7 +375,7 @@ export const createSurveyByKeys = async (envKeys: Array<string>) => {
                 default: packageName ? packageName : undefined,
                 validate: (input) => {
                     if (!input.trim()) return "Hello message cannot be empty";
-                    const englishOnly = /^[a-zA-Z0-9_ ]*$/.test(input);
+                    const englishOnly = /^[a-zA-Z0-9_ \-]*$/.test(input.trim());
                     if (!englishOnly) return "Only English characters are allowed";
                     const minChars = input.length >= 5;
                     if (!minChars) return "Hello message should be at least 5 characters long";
@@ -434,7 +481,7 @@ export const createSurvey = async () => {
                 message: "Hello message:",
                 validate: (input) => {
                     if (!input.trim()) return "Hello message cannot be empty";
-                    const englishOnly = /^[a-zA-Z0-9_ ]*$/.test(input);
+                    const englishOnly = /^[a-zA-Z0-9_ \-]*$/.test(input.trim());
                     if (!englishOnly) return "Only English characters are allowed";
                     const minChars = input.length >= 5;
                     if (!minChars) return "Hello message should be at least 5 characters long";
@@ -577,7 +624,6 @@ export const fillSurvey = async (token: string) => {
 
 
         const encryptedAnswers = encryptAnswers(hello, answers, publicKey);
-
 
         if (!emails.length) {
             const sendEmails = await requestEmails();
