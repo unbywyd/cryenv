@@ -54,25 +54,30 @@ export const getMissingEnvKeys = (envFilePath: string): string[] => {
         return [];
     }
 
-    // Read the content of the .env file
     const envContent = fs.readFileSync(envFilePath, "utf-8");
-
-    // Split the content into lines
     const lines = envContent.split("\n");
-
-    // Find keys without values
     const missingKeys: string[] = [];
 
     for (const line of lines) {
-        // Remove whitespace and comments
         const cleanedLine = line.trim();
         if (!cleanedLine || cleanedLine.startsWith("#")) continue;
 
-        // Split the line into key and value
-        const [key, value] = cleanedLine.split("=", 2).map((s) => s.trim());
+        if (!cleanedLine.includes("=")) {
+            console.log(`⚠️ Key "${cleanedLine}" found without value`);
+            missingKeys.push(cleanedLine.trim());
+            continue;
+        }
 
-        // If the value is empty or the key is not in process.env
-        if (!value || !(key in process.env)) {
+        const match = cleanedLine.match(/^([A-Za-z0-9_]+)=(?:"((?:[^"]|\\")*)"|'((?:[^']|\\')*)'|(.+))?$/);
+
+        if (!match) continue;
+
+        const key = match[1].trim();
+        const value = (match[2] || match[3] || match[4] || "").trim();
+
+        console.log(`Parsed ENV: key=${key}, value="${value}"`);
+
+        if (value === "") {
             missingKeys.push(key);
         }
     }
