@@ -239,6 +239,11 @@ export const saveQuestions = async (hello: string, questions: Question[]) => {
 }
 
 export const useFile = async (name: string) => {
+    const validName = /^[a-zA-Z0-9_ \-]*$/.test(name);
+    if (!validName) {
+        console.error("❌ Invalid file name. Use only letters, numbers, spaces, underscores, and hyphens.");
+        process.exit(1);
+    }
     const fromSaveFile = path.join(process.cwd(), `${name}.cryenv`);
     if (!fs.existsSync(fromSaveFile)) {
         console.error(`❌ File ${name}.cryenv not found`);
