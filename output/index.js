@@ -43,18 +43,25 @@ export function colorText(text, color) {
 *   Encrypts the answers object with the provided public key
 */
 export const encryptAnswers = (helloKey, answers, publicKey) => {
-    const compressed = compressAnswers(answers);
-    const encrypted = crypto.publicEncrypt(publicKey, Buffer.from(compressed));
-    return `${helloKey}::${encrypted.toString("base64")}`;
+    const aesKey = crypto.randomBytes(32); // Генерация 256-битного AES-ключа
+    const iv = crypto.randomBytes(16); // IV (Initialization Vector)
+    const cipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
+    let encryptedData = cipher.update(JSON.stringify(answers), "utf-8", "base64");
+    encryptedData += cipher.final("base64");
+    const encryptedAesKey = crypto.publicEncrypt(publicKey, aesKey);
+    return `${helloKey}::${iv.toString("base64")}::${encryptedAesKey.toString("base64")}::${encryptedData}`;
 };
 /*
 *   Decrypts the encrypted data with the private key
 */
 export const decryptAnswers = async (encryptedData) => {
-    const [_hello, data] = encryptedData.split("::");
+    const [_hello, ivBase64, aesKeyBase64, encryptedText] = encryptedData.split("::");
     const privateKey = await getPrivateKey();
-    const decrypted = crypto.privateDecrypt(privateKey, Buffer.from(data, "base64"));
-    return decompressAnswers(decrypted.toString());
+    const aesKey = crypto.privateDecrypt(privateKey, Buffer.from(aesKeyBase64, "base64"));
+    const decipher = crypto.createDecipheriv("aes-256-cbc", aesKey, Buffer.from(ivBase64, "base64"));
+    let decrypted = decipher.update(encryptedText, "base64", "utf-8");
+    decrypted += decipher.final("utf-8");
+    return JSON.parse(decrypted);
 };
 /*
 *   Creates a survey token with the provided hello message and survey data
@@ -569,7 +576,7 @@ export const fillSurvey = async (token) => {
         console.log(colorText("📦 Encrypted answers copied to clipboard!", 'gray'));
     }
     catch (e) {
-        console.error("❌ An error occurred while filling the survey.");
+        console.error("❌ An error occurred while filling the survey.", e.message);
         process.exit(1);
     }
 };

@@ -26,7 +26,7 @@ export type Question = {
 };
 export declare function colorText(text: string, color: "yellow" | "gray" | "green" | "red"): string;
 export declare const encryptAnswers: (helloKey: string, answers: Record<string, any>, publicKey: string) => string;
-export declare const decryptAnswers: (encryptedData: string) => Promise<Record<string, any>>;
+export declare const decryptAnswers: (encryptedData: string) => Promise<any>;
 export declare const createSurveyToken: (helloKey: string, surveyData: string) => Promise<string>;
 export declare const extractEmailsFromToken: (emailParts: string | undefined) => Array<string>;
 export declare const extractSurveyToken: (compressedToken: string) => {
