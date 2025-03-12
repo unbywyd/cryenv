@@ -576,6 +576,16 @@ export const decompressAnswers = (answers) => {
 export const fillSurvey = async (token) => {
     try {
         const { surveyData, publicKey, hello, emails } = extractSurveyToken(token);
+        const helloMessage = hello.replace(/_/g, ' ');
+        console.log(colorText(`👋 ${helloMessage}`, "yellow"));
+        if (emails.length > 0) {
+            console.log(colorText(`📧 This survey was sent from ${emails[1]}`, 'green'));
+            console.log(colorText(`📧 Please fill it out and notify the sender. We will also send them an email.`, 'gray'));
+        }
+        else {
+            console.log(colorText(`📧 This survey was sent to you directly.`, 'green'));
+            console.log(colorText(`📧 Please fill it out and notify the sender.`, 'gray'));
+        }
         const questions = parseQuestions(surveyData);
         const answers = await inquirer.prompt(questions.map((q) => ({
             type: q.type,
