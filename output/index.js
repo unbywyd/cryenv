@@ -9,26 +9,36 @@ import { getMissingEnvKeys, updateEnvVariable } from "./env.js";
 import { getPackageName } from "./utils.js";
 import { execSync } from "child_process";
 import { sendSurveyRequest } from "./send.js";
-export var InputFormat;
-(function (InputFormat) {
-    InputFormat["TEXT"] = "text";
-    InputFormat["EMAIL"] = "email";
-    InputFormat["PHONE"] = "phone";
-    InputFormat["NUMBER"] = "number";
-    InputFormat["INTEGER"] = "integer";
-    InputFormat["BOOLEAN"] = "boolean";
-    InputFormat["DATE"] = "date";
-    InputFormat["UUID"] = "uuid";
-    InputFormat["URL"] = "url";
-})(InputFormat || (InputFormat = {}));
-export var QuestionType;
-(function (QuestionType) {
-    QuestionType["input"] = "input";
-    QuestionType["confirm"] = "confirm";
-    QuestionType["checkbox"] = "checkbox";
-    QuestionType["list"] = "list";
-    QuestionType["password"] = "password";
-})(QuestionType || (QuestionType = {}));
+const controls = ["text", "confirm", "password", "email", "phone", "number", "integer", "date", "uuid", "url", "multiselect", "select"];
+const formatByControl = {
+    text: "text",
+    password: "text",
+    email: "email",
+    phone: "phone",
+    number: "number",
+    integer: "integer",
+    date: "date",
+    uuid: "uuid",
+    url: "url",
+    multiselect: "text",
+    select: "text",
+    confirm: "text"
+};
+const selectControls = ["multiselect", "select"];
+const questionTypeByControl = {
+    text: "input",
+    password: "password",
+    confirm: "confirm",
+    multiselect: "checkbox",
+    select: "list",
+    email: "input",
+    phone: "input",
+    number: "input",
+    integer: "input",
+    date: "input",
+    uuid: "input",
+    url: "input"
+};
 export function colorText(text, color) {
     const colors = {
         yellow: "\x1b[33m",
@@ -170,15 +180,15 @@ function validateInput(type, input) {
 *   Validates the input based on the provided format
 */
 const compressQuestion = (question) => {
-    let output = `${question.name}|!${question.message || '_'}|!${question.default || '_'}|!${question.type}|!${question.format}|!${question.choices ? question.choices.join(",") : '_'}`;
+    let output = `${question.name}|!${question.message || '_'}|!${question.default || '_'}|!${question.control}|!${question.choices ? question.choices.join(",") : '_'}`;
     return output;
 };
 const complressQuestions = (questions) => {
     return questions.map(compressQuestion).join(";;");
 };
 const parseQuestion = (input) => {
-    const [name, message, defaultValue, type, format, choices] = input.split("|!");
-    return { name, message: message == '_' ? '' : message, default: defaultValue == '_' ? '' : defaultValue, type: type, format: format, choices: choices == '_' ? [] : choices?.split(",").map((s) => s.trim()) };
+    const [name, message, defaultValue, control, choices] = input.split("|!");
+    return { name, message: message == '_' ? '' : message, default: defaultValue == '_' ? '' : defaultValue, control: control, choices: choices == '_' ? [] : choices?.split(",").map((s) => s.trim()) };
 };
 const parseQuestions = (input) => {
     return input.split(";;").map(parseQuestion);
@@ -343,12 +353,13 @@ export const createSurveyByKeys = async (envKeys) => {
                 message: "Hello message:",
                 default: packageName ? packageName : undefined,
                 validate: (input) => {
-                    if (!input.trim())
+                    const value = input.trim();
+                    if (!value)
                         return "Hello message cannot be empty";
-                    const englishOnly = /^[a-zA-Z0-9_ \-]*$/.test(input.trim());
+                    const englishOnly = /^[a-zA-Z0-9_ \-]*$/.test(value);
                     if (!englishOnly)
                         return "Only English characters are allowed";
-                    const minChars = input.length >= 5;
+                    const minChars = value.length >= 3;
                     if (!minChars)
                         return "Hello message should be at least 5 characters long";
                     return true;
@@ -375,16 +386,17 @@ export const createSurveyByKeys = async (envKeys) => {
                 }
             ]);
             const { message, defaultValue } = parseMessageQuestion(sourceMessage);
-            const { type } = await inquirer.prompt([
+            const { control } = await inquirer.prompt([
                 {
                     type: "list",
-                    name: "type",
+                    name: "control",
                     message: "Choose the type of question:",
-                    choices: Object.values(QuestionType)
+                    choices: controls
                 }
             ]);
             let choices;
-            if (type === QuestionType.list || type === QuestionType.checkbox) {
+            const isSelectControl = selectControls.includes(control);
+            if (isSelectControl) {
                 const { options } = await inquirer.prompt([
                     {
                         type: "input",
@@ -403,20 +415,7 @@ export const createSurveyByKeys = async (envKeys) => {
                 ]);
                 choices = options.split(",").map((s) => s.trim());
             }
-            let format = InputFormat.TEXT;
-            if (type === QuestionType.input) {
-                const { inputFormat } = await inquirer.prompt([
-                    {
-                        type: "list",
-                        name: "inputFormat",
-                        message: "Choose the answer format:",
-                        choices: Object.values(InputFormat),
-                        default: InputFormat.TEXT
-                    }
-                ]);
-                format = inputFormat;
-            }
-            questions.push({ message, type, name: key, default: defaultValue, format, choices });
+            questions.push({ message, control, name: key, default: defaultValue, choices });
         }
         catch (e) {
             console.error("\n ❌ Action was aborted by the user");
@@ -445,12 +444,13 @@ export const createSurvey = async () => {
                 default: packageName ? packageName : undefined,
                 message: "Hello message:",
                 validate: (input) => {
-                    if (!input.trim())
+                    const value = input.trim();
+                    if (!value)
                         return "Hello message cannot be empty";
-                    const englishOnly = /^[a-zA-Z0-9_ \-]*$/.test(input.trim());
+                    const englishOnly = /^[a-zA-Z0-9_ \-]*$/.test(value);
                     if (!englishOnly)
                         return "Only English characters are allowed";
-                    const minChars = input.length >= 5;
+                    const minChars = value.length >= 3;
                     if (!minChars)
                         return "Hello message should be at least 5 characters long";
                     return true;
@@ -471,7 +471,7 @@ export const createSurvey = async () => {
                     type: "input",
                     name: "question",
                     required: true,
-                    message: "var: varName | Description (default value): ",
+                    message: "varName | Description (default value): ",
                     default: "DB | Postgres (postgres://user:pass@localhost:5432/dbname)",
                     validate: (input) => {
                         if (!input.trim())
@@ -489,21 +489,21 @@ export const createSurvey = async () => {
             if (!question.trim())
                 return;
             const { message, defaultValue, varName } = parseInputQuestion(question);
-            const { type } = await inquirer.prompt([
+            const { control } = await inquirer.prompt([
                 {
                     type: "list",
-                    name: "type",
+                    name: "control",
                     message: "Choose the type of question:",
-                    choices: Object.values(QuestionType)
+                    choices: controls
                 }
             ]);
             let choices;
-            if (type === QuestionType.list || type === QuestionType.checkbox) {
+            const isSelectControl = selectControls.includes(control);
+            if (isSelectControl) {
                 const { options } = await inquirer.prompt([
                     {
                         type: "input",
                         name: "options",
-                        required: true,
                         message: "Enter options separated by commas:",
                         validate: (input) => {
                             if (input.split(",").length < 2) {
@@ -518,20 +518,7 @@ export const createSurvey = async () => {
                 ]);
                 choices = options.split(",").map((s) => s.trim());
             }
-            let format = InputFormat.TEXT;
-            if (type === QuestionType.input) {
-                const { inputFormat } = await inquirer.prompt([
-                    {
-                        type: "list",
-                        name: "inputFormat",
-                        message: "Choose the answer format:",
-                        choices: Object.values(InputFormat),
-                        default: InputFormat.TEXT
-                    }
-                ]);
-                format = inputFormat;
-            }
-            questions.push({ message, type, name: varName, default: defaultValue, format, choices });
+            questions.push({ message, control, name: varName, default: defaultValue, choices });
             const { addMore } = await inquirer.prompt([
                 {
                     type: "confirm",
@@ -587,15 +574,19 @@ export const fillSurvey = async (token) => {
             console.log(colorText(`📧 Please fill it out and notify the sender.`, 'gray'));
         }
         const questions = parseQuestions(surveyData);
-        const answers = await inquirer.prompt(questions.map((q) => ({
-            type: q.type,
-            name: q.name,
-            required: true,
-            message: q.message || q.name,
-            default: q.default || undefined,
-            validate: (input) => validateInput(q.format, input) || `Invalid ${q.format} format`,
-            choices: q.choices
-        })));
+        const answers = await inquirer.prompt(questions.map((q) => {
+            const type = questionTypeByControl[q.control];
+            const format = formatByControl[q.control];
+            return {
+                type: type,
+                name: q.name,
+                required: true,
+                message: q.message || q.name,
+                default: q.default || undefined,
+                validate: (input) => validateInput(format, input) || `Invalid ${format} format`,
+                choices: q.choices
+            };
+        }));
         const encryptedAnswers = encryptAnswers(hello, answers, publicKey);
         if (!emails.length) {
             const sendEmails = await requestEmails();

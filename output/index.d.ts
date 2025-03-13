@@ -1,27 +1,11 @@
-export declare enum InputFormat {
-    TEXT = "text",
-    EMAIL = "email",
-    PHONE = "phone",
-    NUMBER = "number",
-    INTEGER = "integer",
-    BOOLEAN = "boolean",
-    DATE = "date",
-    UUID = "uuid",
-    URL = "url"
-}
-export declare enum QuestionType {
-    input = "input",
-    confirm = "confirm",
-    checkbox = "checkbox",
-    list = "list",
-    password = "password"
-}
+export type InputFormat = "text" | "email" | "phone" | "number" | "integer" | "date" | "uuid" | "url";
+export type QuestionType = "input" | "confirm" | "checkbox" | "list" | "password";
+export type ControlFormat = InputFormat | "multiselect" | "select" | "password" | "confirm";
 export type Question = {
     message: string;
-    type: QuestionType;
+    control: ControlFormat;
     name: string;
     default?: any;
-    format: InputFormat;
     choices: Array<string> | undefined;
 };
 export declare function colorText(text: string, color: "yellow" | "gray" | "green" | "red"): string;
