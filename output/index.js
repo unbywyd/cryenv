@@ -633,7 +633,7 @@ export const fillSurvey = async (token) => {
             const toBase64 = Buffer.from(email).toString("base64");
             const result = `${encryptedAnswers}.${toBase64}`;
             await sendSurveyRequest('import', result);
-            console.log(colorText(`✅ Email sent to ${toEmail}!`, "green"));
+            console.log(colorText(`✅ Email sent to ${fromEmail}!`, "green"));
             console.log(colorText(`Please check your spam folder if you don't see the email.`, "gray"));
             console.log(colorText(`npx cryenv --import ${result}`, "green"));
             copyToClipboard(`npx cryenv --import ${result}`);
