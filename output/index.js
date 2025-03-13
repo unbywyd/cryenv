@@ -5,7 +5,7 @@ import crypto from "crypto";
 import path from "path";
 import zlib from "zlib";
 import { getPrivateKey, getPublicKey, provideKeys } from "./keys.js";
-import { getMissingEnvKeys, updateEnvVariable } from "./env.js";
+import { getEmptyEnvKeys, updateEnvVariable } from "./env.js";
 import { getPackageName } from "./utils.js";
 import { execSync } from "child_process";
 import { sendSurveyRequest } from "./send.js";
@@ -382,6 +382,7 @@ export const createSurveyByKeys = async (envKeys) => {
                     name: "sourceMessage",
                     message: `Enter description for ${key}:`,
                     required: true,
+                    default: key,
                     validate: (input) => input.trim() !== "" || "Description cannot be empty"
                 }
             ]);
@@ -415,7 +416,8 @@ export const createSurveyByKeys = async (envKeys) => {
                 ]);
                 choices = options.split(",").map((s) => s.trim());
             }
-            questions.push({ message, control, name: key, default: defaultValue, choices });
+            const outputMessage = message == key ? '_' : message;
+            questions.push({ message: outputMessage, control, name: key, default: defaultValue, choices });
         }
         catch (e) {
             console.error("\n ❌ Action was aborted by the user");
@@ -577,11 +579,12 @@ export const fillSurvey = async (token) => {
         const answers = await inquirer.prompt(questions.map((q) => {
             const type = questionTypeByControl[q.control];
             const format = formatByControl[q.control];
+            const message = (q.message == '_' || q.message == '') ? q.name : q.message;
             return {
                 type: type,
                 name: q.name,
                 required: true,
-                message: q.message || q.name,
+                message: message,
                 default: q.default || undefined,
                 validate: (input) => validateInput(format, input) || `Invalid ${format} format`,
                 choices: q.choices
@@ -688,11 +691,14 @@ export const fromEnv = async (filepath) => {
     else {
         console.log(colorText(`📦 Reading from ${envPath}`, "green"));
     }
-    const missingKeys = getMissingEnvKeys(envPath);
-    if (missingKeys.length === 0) {
+    const emptyKeys = getEmptyEnvKeys(envPath);
+    if (emptyKeys.length === 0) {
         console.log(colorText("✅ All keys are present in the .env file", "yellow"));
         process.exit(0);
     }
-    createSurveyByKeys(missingKeys);
+    for (const key of emptyKeys) {
+        console.log(colorText(`✅ Found empty key "${key}"`, "yellow"));
+    }
+    createSurveyByKeys(emptyKeys);
 };
 //# sourceMappingURL=index.js.map

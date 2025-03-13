@@ -48,7 +48,7 @@ export function updateEnvVariable(envPath: string, key: string, value: string, o
     }
 }
 
-export const getMissingEnvKeys = (envFilePath: string): string[] => {
+export const getEmptyEnvKeys = (envFilePath: string): string[] => {
     if (!fs.existsSync(envFilePath)) {
         console.error(`❌ .env file not found at path: ${envFilePath}`);
         return [];
@@ -74,8 +74,6 @@ export const getMissingEnvKeys = (envFilePath: string): string[] => {
 
         const key = match[1].trim();
         const value = (match[2] || match[3] || match[4] || "").trim();
-
-        console.log(`Parsed ENV: key=${key}, value="${value}"`);
 
         if (value === "") {
             missingKeys.push(key);
