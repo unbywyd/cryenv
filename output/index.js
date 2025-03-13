@@ -424,9 +424,99 @@ export const createSurveyByKeys = async (envKeys) => {
             process.exit(1);
         }
     }
+    try {
+        const { addAdditional } = await inquirer.prompt([
+            {
+                type: "confirm",
+                name: "addAdditional",
+                message: "Do you want to add more questions?",
+                default: false
+            }
+        ]);
+        if (addAdditional) {
+            await addQuestion(questions);
+        }
+    }
+    catch (e) {
+        console.error("\n ❌ Action was aborted by the user");
+        process.exit(1);
+    }
     await saveQuestions(hello, questions);
     const token = await createSurveyToken(helloKey, complressQuestions(questions));
     await toFill(token);
+};
+const addQuestion = async (questions) => {
+    try {
+        const { question } = await inquirer.prompt([
+            {
+                type: "input",
+                name: "question",
+                required: true,
+                message: "varName | Description (default value): ",
+                default: "DB | Postgres (postgres://user:pass@localhost:5432/dbname)",
+                validate: (input) => {
+                    if (!input.trim())
+                        return "Question cannot be empty";
+                    const key = input.split("|")[0].trim();
+                    const validKey = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key);
+                    if (!validKey)
+                        return "Invalid variable name. Use only letters, numbers and underscores";
+                    if (questions.find(q => q.name === key))
+                        return "Variable name already exists";
+                    return true;
+                }
+            }
+        ]);
+        if (!question.trim())
+            return;
+        const { message, defaultValue, varName } = parseInputQuestion(question);
+        const { control } = await inquirer.prompt([
+            {
+                type: "list",
+                name: "control",
+                message: "Choose the type of question:",
+                choices: controls
+            }
+        ]);
+        let choices;
+        const isSelectControl = selectControls.includes(control);
+        if (isSelectControl) {
+            const { options } = await inquirer.prompt([
+                {
+                    type: "input",
+                    name: "options",
+                    message: "Enter options separated by commas:",
+                    validate: (input) => {
+                        if (input.split(",").length < 2) {
+                            return "Please enter at least two options";
+                        }
+                        if (input.trim() === "") {
+                            return "Options list cannot be empty";
+                        }
+                        return true;
+                    }
+                }
+            ]);
+            choices = options.split(",").map((s) => s.trim());
+        }
+        questions.push({ message, control, name: varName, default: defaultValue, choices });
+        const { addMore } = await inquirer.prompt([
+            {
+                type: "confirm",
+                name: "addMore",
+                message: "Add another question?",
+                default: false
+            }
+        ]);
+        if (addMore) {
+            await addQuestion(questions);
+        }
+    }
+    catch (e) {
+        console.error("❌ Action was aborted by the user, exiting process");
+        process.exit(1);
+    }
+    return questions;
 };
 export const createSurvey = async () => {
     const questions = [];
@@ -466,80 +556,8 @@ export const createSurvey = async () => {
         process.exit(1);
     }
     const helloKey = helloToKey(hello);
-    const addQuestion = async () => {
-        try {
-            const { question } = await inquirer.prompt([
-                {
-                    type: "input",
-                    name: "question",
-                    required: true,
-                    message: "varName | Description (default value): ",
-                    default: "DB | Postgres (postgres://user:pass@localhost:5432/dbname)",
-                    validate: (input) => {
-                        if (!input.trim())
-                            return "Question cannot be empty";
-                        const key = input.split("|")[0].trim();
-                        const validKey = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key);
-                        if (!validKey)
-                            return "Invalid variable name. Use only letters, numbers and underscores";
-                        if (questions.find(q => q.name === key))
-                            return "Variable name already exists";
-                        return true;
-                    }
-                }
-            ]);
-            if (!question.trim())
-                return;
-            const { message, defaultValue, varName } = parseInputQuestion(question);
-            const { control } = await inquirer.prompt([
-                {
-                    type: "list",
-                    name: "control",
-                    message: "Choose the type of question:",
-                    choices: controls
-                }
-            ]);
-            let choices;
-            const isSelectControl = selectControls.includes(control);
-            if (isSelectControl) {
-                const { options } = await inquirer.prompt([
-                    {
-                        type: "input",
-                        name: "options",
-                        message: "Enter options separated by commas:",
-                        validate: (input) => {
-                            if (input.split(",").length < 2) {
-                                return "Please enter at least two options";
-                            }
-                            if (input.trim() === "") {
-                                return "Options list cannot be empty";
-                            }
-                            return true;
-                        }
-                    }
-                ]);
-                choices = options.split(",").map((s) => s.trim());
-            }
-            questions.push({ message, control, name: varName, default: defaultValue, choices });
-            const { addMore } = await inquirer.prompt([
-                {
-                    type: "confirm",
-                    name: "addMore",
-                    message: "Add another question?",
-                    default: false
-                }
-            ]);
-            if (addMore) {
-                await addQuestion();
-            }
-        }
-        catch (e) {
-            console.error("❌ Action was aborted by the user, exiting process");
-            process.exit(1);
-        }
-    };
     try {
-        await addQuestion();
+        await addQuestion(questions);
     }
     catch (e) {
         console.error("❌ Invalid question.", e?.message);
