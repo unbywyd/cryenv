@@ -1,6 +1,6 @@
 {
   "name": "cryenv",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "🔐 Securely collect and manage missing .env variables via encrypted CLI surveys.",
   "type": "module",
   "private": false,

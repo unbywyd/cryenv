@@ -747,7 +747,6 @@ export const fromEnv = async (filepath?: string) => {
         console.log(colorText(`📦 Reading from ${envPath}`, "green"));
     }
     const missingKeys = getMissingEnvKeys(envPath);
-    console.log(missingKeys)
     if (missingKeys.length === 0) {
         console.log(colorText("✅ All keys are present in the .env file", "yellow"));
         process.exit(0);
