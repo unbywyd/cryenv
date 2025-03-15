@@ -7,7 +7,7 @@ import { getPrivateKey, getPublicKey, provideKeys } from "./keys.js";
 import { getPackageName } from "./utils.js";
 import { execSync } from "child_process";
 import { sendSurveyRequest } from "./send.js";
-import { getEmptyEnvKeys, outputFile, pathExists, readFileSafe, writeEnvVar } from "fsesm";
+import { find, getEmptyEnvKeys, outputFile, pathExists, readFileSafe, writeEnvVar } from "fsesm";
 const controls = ["text", "confirm", "password", "email", "phone", "number", "integer", "date", "uuid", "url", "multiselect", "select"];
 const formatByControl = {
     text: "text",
@@ -215,12 +215,32 @@ export const saveQuestions = async (hello, questions) => {
     console.log(colorText(`📦 Questions saved to ${output}`, "green"));
 };
 export const useFile = async (name) => {
-    const validName = /^[a-zA-Z0-9_ \-]*$/.test(name);
-    if (!validName) {
-        console.error("❌ Invalid file name. Use only letters, numbers, spaces, underscores, and hyphens.");
-        process.exit(1);
+    let fromSaveFile = name;
+    if (!name) {
+        const backupFiles = await find('*.cryenv', { cwd: process.cwd(), maxDepth: 3 });
+        if (!backupFiles.length) {
+            console.error("❌ No .cryenv file found in the current directory.");
+            process.exit(1);
+        }
+        try {
+            const { restoreFilePrompt } = await inquirer.prompt([
+                {
+                    type: "list",
+                    name: "restoreFilePrompt",
+                    message: "Select the file to restore:",
+                    choices: backupFiles
+                }
+            ]);
+            fromSaveFile = path.join(process.cwd(), restoreFilePrompt);
+        }
+        catch (e) {
+            console.error("❌ Action was aborted by the user.");
+            process.exit(1);
+        }
     }
-    const fromSaveFile = path.join(process.cwd(), `${name}.cryenv`);
+    else {
+        fromSaveFile = path.join(process.cwd(), `${name}.cryenv`);
+    }
     if (!await pathExists(fromSaveFile)) {
         console.error(`❌ File ${name}.cryenv not found`);
         process.exit(1);
@@ -676,7 +696,54 @@ export const importSurvey = async (encryptedToken, saveTo) => {
         for (const [key, value] of Object.entries(decryptedAnswers)) {
             console.log(colorText(`${key}: ${value}`, "yellow"));
         }
-        const envOutput = saveTo ? path.join(process.cwd(), saveTo) : path.join(process.cwd(), ".env");
+        let envOutput = saveTo;
+        if (!saveTo) {
+            const envFiles = await find('.env*', { cwd: process.cwd(), maxDepth: 0 });
+            if (!envFiles.length) {
+                envOutput = path.join(process.cwd(), ".env");
+            }
+            else {
+                try {
+                    const choices = [
+                        { name: "Create a new .env file", value: "NEW" },
+                        ...envFiles.map((file) => ({ name: file, value: file }))
+                    ];
+                    const { selectedEnv } = await inquirer.prompt([
+                        {
+                            type: "list",
+                            name: "selectedEnv",
+                            message: "Select the .env file to import the answers:",
+                            choices
+                        }
+                    ]);
+                    if (selectedEnv === "NEW") {
+                        const { newEnvOutput } = await inquirer.prompt([
+                            {
+                                type: "input",
+                                name: "newEnvOutput",
+                                message: "Enter the name of the new .env file:",
+                                validate: async (input) => {
+                                    if (!input)
+                                        return "Name cannot be empty";
+                                    if (await pathExists(input))
+                                        return "File already exists";
+                                    return true;
+                                },
+                                required: true,
+                            }
+                        ]);
+                        envOutput = path.join(process.cwd(), newEnvOutput);
+                    }
+                    else {
+                        envOutput = path.join(process.cwd(), selectedEnv);
+                    }
+                }
+                catch (e) {
+                    console.error("❌ Action was aborted by the user");
+                    process.exit(1);
+                }
+            }
+        }
         const { acceptToSave } = await inquirer.prompt([
             {
                 type: "confirm",
@@ -697,7 +764,29 @@ export const importSurvey = async (encryptedToken, saveTo) => {
     }
 };
 export const fromEnv = async (filepath) => {
-    const envPath = filepath ? path.join(process.cwd(), filepath) : path.join(process.cwd(), ".env");
+    let envPath = filepath;
+    if (!filepath) {
+        const envFiles = await find('.env*', { cwd: process.cwd(), maxDepth: 0 });
+        if (!envFiles.length) {
+            console.error("❌ No .env file found in the current directory.");
+            process.exit(1);
+        }
+        try {
+            const { selectedEnv } = await inquirer.prompt([
+                {
+                    type: "list",
+                    name: "selectedEnv",
+                    message: "Select the .env file to import:",
+                    choices: envFiles
+                }
+            ]);
+            envPath = path.join(process.cwd(), selectedEnv);
+        }
+        catch (e) {
+            console.error("❌ Action was aborted by the user");
+            process.exit(1);
+        }
+    }
     if (!pathExists(envPath)) {
         console.error(`❌ File ${envPath} not found`);
         process.exit(1);

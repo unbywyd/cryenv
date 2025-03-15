@@ -30,7 +30,7 @@ export declare const parseInputQuestion: (input: string) => {
 };
 export declare const helloToKey: (hello: string) => string;
 export declare const saveQuestions: (hello: string, questions: Question[]) => Promise<void>;
-export declare const useFile: (name: string) => Promise<void>;
+export declare const useFile: (name?: string) => Promise<void>;
 export declare const requestEmails: () => Promise<false | Array<string>>;
 export declare const toFill: (token: string) => Promise<void>;
 export declare const createSurveyByKeys: (envKeys: Array<string>) => Promise<void>;

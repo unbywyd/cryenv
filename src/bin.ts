@@ -13,7 +13,7 @@ const args = process.argv.slice(2);
         const envPathIndex = args.indexOf("--path");
         const envPath = envPathIndex !== -1 && args[envPathIndex + 1] ? args[envPathIndex + 1] : undefined;
         await importSurvey(args[1], envPath);
-    } else if (args[0] === "--restore" && args[1]) {
+    } else if (args[0] === "--restore") {
         await useFile(args[1]);
     } else if (args[0] === "--env") {
         await fromEnv(args[1]);
