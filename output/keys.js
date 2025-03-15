@@ -1,9 +1,7 @@
-import fs from "fs-extra";
 import inquirer from "inquirer";
 import path from "path";
 import crypto from "crypto";
-import { readFileSync } from "fs";
-const { existsSync, outputFileSync } = fs;
+import { outputFile, pathExists, readFileSafe } from "fsesm";
 export const generateKeys = async () => {
     let keyName = "cryenv";
     const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
@@ -23,8 +21,8 @@ export const generateKeys = async () => {
     ]);
     if (!acceptSave)
         return;
-    outputFileSync(outputPrivate, privateKey);
-    outputFileSync(outputPublic, publicKey);
+    await outputFile(outputPrivate, privateKey);
+    await outputFile(outputPublic, publicKey);
     console.log(`🔐 Keys generated and saved to ${rootDir}!`);
 };
 export const provideKeys = async () => {
@@ -37,31 +35,31 @@ export const provideKeys = async () => {
 export const getPathKeys = async (key) => {
     const publicPem = path.join(process.cwd(), `${key}.public.pem`);
     const privatePem = path.join(process.cwd(), `${key}.private.pem`);
-    if (existsSync(publicPem) && existsSync(privatePem)) {
+    if (await pathExists(publicPem) && await pathExists(privatePem)) {
         return [publicPem, privatePem];
     }
     return null;
 };
 export const getPublicKey = async () => {
     const outputPublic = path.join(process.cwd(), `cryenv.public.pem`);
-    if (!existsSync(outputPublic)) {
+    if (!pathExists(outputPublic)) {
         console.error("❌ Public key not found. Please generate keys first.");
         console.error(`Run 'cryenv generate' to generate keys`);
         process.exit(1);
     }
     else {
-        const publicKey = readFileSync(outputPublic, "utf-8");
+        const publicKey = readFileSafe(outputPublic, "utf-8");
         return publicKey;
     }
 };
 export const getPrivateKey = async () => {
     const outputPrivate = path.join(process.cwd(), `cryenv.private.pem`);
-    if (!existsSync(outputPrivate)) {
+    if (!pathExists(outputPrivate)) {
         console.error("❌ Private key not found. Please generate keys first.");
         console.error(`Run 'cryenv generate' to generate keys`);
         process.exit(1);
     }
-    const privateKey = readFileSync(outputPrivate, "utf-8");
+    const privateKey = readFileSafe(outputPrivate, "utf-8");
     return privateKey;
 };
 //# sourceMappingURL=keys.js.map

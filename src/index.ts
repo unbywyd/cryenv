@@ -1,14 +1,13 @@
-import fs from "fs-extra";
 import inquirer from "inquirer";
 import validator from "validator";
 import crypto from "crypto";
 import path from "path";
 import zlib from "zlib";
 import { getPrivateKey, getPublicKey, provideKeys } from "./keys.js";
-import { getEmptyEnvKeys, updateEnvVariable } from "./env.js";
 import { getPackageName } from "./utils.js";
 import { execSync } from "child_process";
 import { sendSurveyRequest } from "./send.js";
+import { getEmptyEnvKeys, outputFile, pathExists, readFileSafe, writeEnvVar } from "fsesm";
 
 export type InputFormat = "text" | "email" | "phone" | "number" | "integer" | "date" | "uuid" | "url";
 
@@ -255,7 +254,7 @@ export const helloToKey = (hello: string): string => {
 
 export const saveQuestions = async (hello: string, questions: Question[]) => {
     const output = path.join(process.cwd(), `${helloToKey(hello)}.cryenv`);
-    fs.outputFileSync(output, complressQuestions(questions));
+    await outputFile(output, complressQuestions(questions));
     console.log(colorText(`📦 Questions saved to ${output}`, "green"));
 }
 
@@ -266,7 +265,7 @@ export const useFile = async (name: string) => {
         process.exit(1);
     }
     const fromSaveFile = path.join(process.cwd(), `${name}.cryenv`);
-    if (!fs.existsSync(fromSaveFile)) {
+    if (!await pathExists(fromSaveFile)) {
         console.error(`❌ File ${name}.cryenv not found`);
         process.exit(1);
     }
@@ -275,7 +274,7 @@ export const useFile = async (name: string) => {
         console.error(`❌ Keys for ${name} not found`);
         process.exit(1);
     }
-    const questions = fs.readFileSync(fromSaveFile, "utf-8");
+    const questions = await readFileSafe(fromSaveFile, "utf-8");
     try {
         const data = parseQuestions(questions);
         if (data.length === 0) {
@@ -721,15 +720,10 @@ export const copyToClipboard = (text: string) => {
     }
 };
 
-export const saveToEnv = (data: Record<string, any>, envOutput: string) => {
-    if (!fs.existsSync(envOutput)) {
-        fs.writeFileSync(envOutput, '');
+export const saveToEnv = async (data: Record<string, any>, envOutput: string) => {
+    for (const [key, value] of Object.entries(data)) {
+        await writeEnvVar(envOutput, key, value);
     }
-
-    Object.entries(data).forEach(([key, value]) => {
-
-        updateEnvVariable(envOutput, key, value);
-    });
 }
 
 export const importSurvey = async (encryptedToken: string, saveTo?: string) => {
@@ -750,7 +744,7 @@ export const importSurvey = async (encryptedToken: string, saveTo?: string) => {
             console.log("🚫 Survey not imported. Exiting...");
             process.exit(0);
         }
-        saveToEnv(decryptedAnswers, envOutput);
+        await saveToEnv(decryptedAnswers, envOutput);
         console.log(colorText(`✅ All answers saved to ${envOutput}`, "green"));
     } catch (e) {
         console.error("❌ An error occurred while importing the survey.", e.message);
@@ -761,13 +755,13 @@ export const importSurvey = async (encryptedToken: string, saveTo?: string) => {
 
 export const fromEnv = async (filepath?: string) => {
     const envPath = filepath ? path.join(process.cwd(), filepath) : path.join(process.cwd(), ".env");
-    if (!fs.existsSync(envPath)) {
+    if (!pathExists(envPath)) {
         console.error(`❌ File ${envPath} not found`);
         process.exit(1);
     } else {
         console.log(colorText(`📦 Reading from ${envPath}`, "green"));
     }
-    const emptyKeys = getEmptyEnvKeys(envPath);
+    const emptyKeys = await getEmptyEnvKeys(envPath);
     if (emptyKeys.length === 0) {
         console.log(colorText("✅ All keys are present in the .env file", "yellow"));
         process.exit(0);

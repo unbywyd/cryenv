@@ -25,6 +25,36 @@ With CryEnv, you can:
 🛠️ **Easy to use.**
 
 ---
+## **🔒 Security & Data Handling**
+
+CryEnv is designed with **security and privacy** in mind. Here’s how data is handled:
+
+### **Questions (Unencrypted)**
+- Questions are **not encrypted** and are stored in **base64** format with **zlib compression**.
+- **Do not include sensitive data in questions.** Use them only to describe what information is needed.
+- Questions are used to guide the recipient and are not considered secret.
+
+### **Answers (Encrypted)**
+- Answers are **fully encrypted** using a combination of **AES-256-CBC** and **RSA**:
+  1. Compressed with **zlib**.
+  2. Encrypted with a randomly generated **AES-256 key**.
+  3. The AES key is encrypted using the creator’s **RSA public key**.
+  4. The final payload is encoded in **base64** for easy sharing.
+- Only the **survey creator** can decrypt the answers using their private key.
+
+### **Email Feature (Optional)**
+- CryEnv can send survey links via email using `node-fetch` and a private server at **webto.pro**.
+- **No sensitive data is sent or stored** on the server. Only the encrypted survey token is transmitted.
+- Emails are used solely for convenience and are **not required**. You can share tokens manually.
+
+### **Guarantees**
+- **No data is stored** on external servers.
+- **Emails are not saved** or shared with third parties.
+- The email feature is **optional** and can be skipped if you prefer manual sharing.
+
+**Respectfully,  
+Artyom Gorlovetskiy**
+---
 
 ## **🚀 Quick Start**
 

@@ -1,6 +1,6 @@
 {
   "name": "cryenv",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "🔐 Securely collect and manage missing .env variables via encrypted CLI surveys.",
   "type": "module",
   "private": false,
@@ -41,7 +41,6 @@
     "typescript"
   ],
   "devDependencies": {
-    "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.10.10",
     "@types/validator": "^13.12.2",
     "tsup": "^8.4.0",
@@ -53,7 +52,7 @@
     "LICENSE.md"
   ],
   "dependencies": {
-    "fs-extra": "^11.3.0",
+    "fsesm": "^0.2.2",
     "inquirer": "^12.4.3",
     "node-fetch": "^3.3.2",
     "validator": "^13.12.0"
